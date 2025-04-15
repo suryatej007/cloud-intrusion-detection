@@ -1,0 +1,51 @@
+# 1. Imports
+import pandas as pd
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense
+from sklearn.metrics import classification_report, confusion_matrix
+import joblib
+
+# 2. Create the models directory
+os.makedirs("models", exist_ok=True)
+
+# 3. Load data
+df = pd.read_csv("NSL_KDD_5features_from_github.csv")
+X = df.drop("label", axis=1)
+y = df["label"]
+
+# 4. Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+joblib.dump(scaler, "models/scaler.pkl")
+
+# 5. Train Random Forest
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf.fit(X_scaled, y)
+joblib.dump(rf, "models/random_forest.pkl")
+
+# 6. Build and train Autoencoder
+input_dim = X_scaled.shape[1]
+input_layer = Input(shape=(input_dim,))
+encoded = Dense(4, activation='relu')(input_layer)
+encoded = Dense(2, activation='relu')(encoded)
+decoded = Dense(4, activation='relu')(encoded)
+decoded = Dense(input_dim, activation='linear')(decoded)
+
+autoencoder = Model(inputs=input_layer, outputs=decoded)
+autoencoder.compile(optimizer='adam', loss='mse')
+autoencoder.fit(X_scaled, X_scaled, epochs=10, batch_size=32, verbose=0)
+autoencoder.save("models/autoencoder.h5")  # ✅ Now it exists
+
+# 7. Calculate threshold
+X_train, X_val, y_train, y_val = train_test_split(X_scaled, y, test_size=0.2, stratify=y, random_state=42)
+recon_val = autoencoder.predict(X_val)
+recon_error_val = np.mean(np.square(X_val - recon_val), axis=1)
+threshold = np.percentile(recon_error_val[y_val == 0], 99)
+joblib.dump(threshold, "models/autoencoder_threshold.pkl")
+
+print("✅ All models saved in /models directory")

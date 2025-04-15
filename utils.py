@@ -26,7 +26,7 @@ def predict_combined(scaled_input):
     rf_pred = rf_model.predict(scaled_input)[0]
 
     # Weighted Combination (alpha for Random Forest, (1-alpha) for Autoencoder)
-    alpha = 0.5  # Weight for Random Forest model
+    alpha = 0.7  # Weight for Random Forest model
     combined_prob = alpha * rf_prob + (1 - alpha) * ae_score
     final_pred = int(combined_prob > 0.5)  # Final classification (Attack/Normal)
 
